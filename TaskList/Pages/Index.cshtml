@@ -1,0 +1,118 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Task Lists</h1>
+    <button type="button" data-bind="click: showAddTaskListModal">Add Task List</button>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody data-bind="foreach: taskLists">
+        <tr>
+            <td data-bind="text: id"></td>
+            <td data-bind="text: name"></td>
+            <td>
+                <button type="button" class="btn btn-secondary btn-sm" data-bind="click: $parent.showEditTaskListModal">Edit</button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="modal fade" id="createTaskListModal" tabindex="-1" aria-labelledby="createTaskListModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createTaskListModalLabel" data-bind="hidden: taskListId">Create Task List</h5>
+                    <h5 class="modal-title" id="createTaskListModalLabel" data-bind="visible: taskListId">Edit Task List</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <label for="taskListName" class="offset-2 col-2 col-form-label">Name:</label>
+                        <div class="col-6">
+                            <input type="text" id="taskListName" class="form-control" data-bind="value: taskListName" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" data-bind="click: createTaskList, hidden: taskListId">Create</button>
+                    <button type="button" class="btn btn-primary" data-bind="click: updateTaskList, visible: taskListId">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script type="text/javascript">
+    function TaskListViewModel() {
+        this.editModal = new bootstrap.Modal('#createTaskListModal', {});
+
+        this.load = async () => {
+            const response = await fetch('/api/tasklist');
+            const arr = await response.json();
+            this.taskLists.removeAll();
+            this.taskLists.push(...arr);
+        };
+
+        this.showAddTaskListModal = () => {
+            this.taskListId(0);
+            this.taskListName("");
+            this.editModal.show();
+        };
+
+        this.showEditTaskListModal = async (item) => {
+            const response = await fetch(`/api/tasklist/${item.id}`, {});
+            const taskList = await response.json();
+            this.taskListId(taskList.id);
+            this.taskListName(taskList.name);
+            this.editModal.show();
+        };
+
+        this.createTaskList = async () => {
+            await fetch('/api/tasklist',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: this.taskListName() })
+                });
+            await this.load();
+            this.editModal.hide();
+        };
+
+        this.updateTaskList = async () => {
+            await fetch(`/api/tasklist/${this.taskListId()}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.taskListName()
+                    })
+                });
+            await this.load();
+            this.editModal.hide();
+        };
+
+        this.taskLists = ko.observableArray();
+        this.taskListName = ko.observable("");
+        this.taskListId = ko.observable(0);
+    }
+    
+    window.onload = async function() {
+        const model = new TaskListViewModel();
+        await model.load();
+        ko.applyBindings(model);
+    }
+</script>
